@@ -1,0 +1,782 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mitaş Chatbot</title>
+  <style>
+    :root {
+      --brand-blue: #0085d4;
+      --brand-blue-dark: #0365a4;
+      --brand-ice: #eaf5ff;
+      --slate: #1b2d3f;
+      --bg: linear-gradient(150deg, #f2f8ff 0%, #ffffff 48%, #dcecff 100%);
+      --panel: rgba(255, 255, 255, 0.96);
+      --border: rgba(3, 101, 164, 0.08);
+      --text: #1f3447;
+      --muted: #5f7891;
+      --accent: var(--brand-blue);
+      --accent-soft: rgba(0, 133, 212, 0.1);
+      --user-bubble: rgba(0, 133, 212, 0.12);
+      --assistant-bubble: rgba(237, 246, 255, 0.95);
+      --shadow: 0 24px 60px rgba(19, 63, 108, 0.22);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      padding: 24px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle at 15% 20%, rgba(0, 133, 212, 0.12), transparent 45%),
+                  radial-gradient(circle at 85% 10%, rgba(3, 101, 164, 0.08), transparent 40%),
+                  radial-gradient(circle at 50% 80%, rgba(0, 133, 212, 0.08), transparent 55%);
+      opacity: 0.7;
+      pointer-events: none;
+    }
+
+    .app {
+      width: min(960px, 100%);
+      height: min(900px, calc(100vh - 48px));
+      min-height: 620px;
+      display: flex;
+      flex-direction: column;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .app::before {
+      content: "";
+      position: absolute;
+      inset: -120px -140px auto auto;
+      width: 240px;
+      height: 240px;
+      background: radial-gradient(circle, rgba(0, 133, 212, 0.08) 0%, rgba(0, 133, 212, 0) 70%);
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .topbar {
+      padding: 26px 32px 16px;
+      border-bottom: 1px solid rgba(3, 101, 164, 0.12);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .brand img {
+      display: block;
+      max-height: 64px;
+    }
+
+    .brand svg {
+      width: 54px;
+      height: 54px;
+      filter: drop-shadow(0 6px 14px rgba(3, 101, 164, 0.25));
+    }
+
+    .intro {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .intro h1 {
+      margin: 0;
+      font-size: 1.52rem;
+      font-weight: 700;
+      letter-spacing: 0.01rem;
+      color: var(--slate);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .intro p {
+      margin: 0;
+      font-size: 0.95rem;
+      color: var(--muted);
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.9rem;
+      color: var(--muted);
+      padding: 10px 16px;
+      background: rgba(0, 133, 212, 0.08);
+      border-radius: 16px;
+      border: 1px solid rgba(3, 101, 164, 0.12);
+    }
+
+    .status .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: rgba(3, 101, 164, 0.2);
+      transition: background 0.2s ease, transform 0.2s ease;
+    }
+
+    .status .dot[data-state="running"] {
+      background: var(--accent);
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+
+    .status .dot[data-state="ok"] {
+      background: #20d98b;
+    }
+
+    .status .dot[data-state="error"] {
+      background: #ff5d6c;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(0.9); opacity: 0.7; }
+      50% { transform: scale(1.2); opacity: 1; }
+      100% { transform: scale(0.9); opacity: 0.7; }
+    }
+
+    .main {
+      flex: 1 1 auto;
+      overflow-y: auto;
+      padding: 22px 32px 0;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      z-index: 1;
+    }
+
+    .conversation {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      padding-bottom: 24px;
+      position: relative;
+    }
+
+    .conversation::before {
+      content: "";
+      position: absolute;
+      inset: -12px -18px 0 -18px;
+      background: linear-gradient(180deg, rgba(0, 133, 212, 0.04), rgba(255, 255, 255, 0));
+      border-radius: 22px;
+      z-index: -1;
+      filter: blur(0.2px);
+      pointer-events: none;
+    }
+
+    .message {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+      animation: fadeUp 0.35s ease;
+    }
+
+    .message.user { flex-direction: row-reverse; }
+
+    .avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-size: 0.9rem;
+      font-weight: 600;
+      background: rgba(255, 255, 255, 0.85);
+      color: var(--accent);
+      flex-shrink: 0;
+      box-shadow: 0 10px 18px rgba(3, 101, 164, 0.15);
+    }
+
+    .message.user .avatar {
+      background: linear-gradient(135deg, var(--brand-blue) 0%, var(--brand-blue-dark) 100%);
+      color: #fff;
+      box-shadow: 0 12px 20px rgba(0, 133, 212, 0.25);
+    }
+
+    .bubble {
+      padding: 14px 18px;
+      border-radius: 16px;
+      line-height: 1.55;
+      font-size: 0.97rem;
+      border: 1px solid rgba(3, 101, 164, 0.12);
+      white-space: pre-wrap;
+      word-break: break-word;
+      backdrop-filter: blur(2px);
+      box-shadow: 0 14px 35px rgba(15, 63, 108, 0.08);
+    }
+
+    .message.user .bubble {
+      background: rgba(0, 133, 212, 0.08);
+      border-color: rgba(0, 133, 212, 0.18);
+    }
+
+    .message.assistant .bubble {
+      background: var(--assistant-bubble);
+      border-color: rgba(3, 101, 164, 0.08);
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .composer {
+      position: sticky;
+      bottom: 0;
+      padding: 18px 24px 26px;
+      background: linear-gradient(180deg, rgba(247, 251, 255, 0) 0%, rgba(247, 251, 255, 0.92) 55%, rgba(247, 251, 255, 1) 100%);
+      border-top: 1px solid rgba(3, 101, 164, 0.12);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      position: relative;
+    }
+
+    .mode-switch {
+      display: inline-flex;
+      gap: 18px;
+      font-size: 0.95rem;
+      color: var(--muted);
+    }
+
+    .mode-switch label { display: inline-flex; gap: 8px; align-items: center; cursor: pointer; }
+
+    .doc-row {
+      display: none;
+      flex-wrap: wrap;
+      gap: 12px 18px;
+      align-items: center;
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: rgba(0, 133, 212, 0.08);
+      border: 1px solid rgba(0, 133, 212, 0.18);
+    }
+
+    .doc-row label { font-weight: 600; font-size: 0.9rem; }
+
+    .doc-row input[type="file"] {
+      color: var(--muted);
+    }
+
+    .toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .toggle input { width: 18px; height: 18px; accent-color: var(--accent); }
+
+    .hint { font-size: 0.82rem; color: var(--muted); flex-basis: 100%; }
+
+    .input-row {
+      display: flex;
+      gap: 14px;
+      align-items: flex-end;
+    }
+
+    textarea {
+      flex: 1;
+      min-height: 50px;
+      max-height: 200px;
+      resize: none;
+      padding: 14px 16px;
+      border-radius: 16px;
+      border: 1px solid rgba(3, 101, 164, 0.12);
+      background: rgba(255, 255, 255, 0.7);
+      color: var(--text);
+      font-size: 1rem;
+      line-height: 1.45;
+      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.12);
+    }
+
+    textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(0, 133, 212, 0.15);
+    }
+
+    button {
+      padding: 14px 22px;
+      border-radius: 14px;
+      border: none;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      box-shadow: 0 12px 26px rgba(0, 133, 212, 0.32);
+      transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      letter-spacing: 0.01rem;
+    }
+
+    button:hover { transform: translateY(-1px); }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .processing-blocker {
+      position: absolute;
+      inset: auto 24px 26px 24px;
+      padding: 12px 18px;
+      background: rgba(247, 251, 255, 0.96);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      color: var(--muted);
+      font-weight: 600;
+      border: 1px solid rgba(0, 133, 212, 0.12);
+      border-radius: 16px;
+      box-shadow: 0 12px 28px rgba(0, 133, 212, 0.12);
+      flex-wrap: wrap;
+    }
+
+    .processing-blocker.active {
+      display: flex;
+    }
+
+    .processing-blocker .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+
+    .processing-blocker span:last-child {
+      font-size: 0.92rem;
+      color: var(--text);
+    }
+
+    .processing-blocker .progress {
+      position: relative;
+      width: 220px;
+      height: 8px;
+      border-radius: 999px;
+      background: rgba(0, 133, 212, 0.12);
+      overflow: hidden;
+    }
+
+    .processing-blocker .progress .bar {
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--brand-blue) 0%, var(--brand-blue-dark) 100%);
+      border-radius: inherit;
+      transition: width 0.2s ease;
+    }
+
+    .processing-blocker .progress .pct {
+      position: relative;
+      display: block;
+      margin-top: 6px;
+      text-align: right;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    @media (max-width: 720px) {
+      body { padding: 12px; }
+      .app { border-radius: 16px; height: calc(100vh - 24px); min-height: unset; }
+      .topbar { padding: 22px 20px 16px; flex-direction: column; align-items: flex-start; }
+      .main { padding: 18px 18px 0; }
+      .composer { padding: 16px 16px 22px; }
+      .input-row { flex-direction: column; }
+      textarea { width: 100%; }
+      button { width: 100%; }
+    }
+
+    .btn-icon {
+      font-size: 1.1rem;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .badge {
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 0.68rem;
+      background: rgba(0, 133, 212, 0.12);
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    ::-webkit-scrollbar {
+      width: 10px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.6);
+      border-radius: 12px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(0, 133, 212, 0.2);
+      border-radius: 12px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(0, 133, 212, 0.32);
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <img src="/static/mitas-logo.png" alt="Mitaş logosu" width="190" height="38" />
+        <div class="intro">
+          <h1>Mitaş Bilgi Asistanı <span class="badge">Beta</span></h1>
+          <p>Kurumsal doküman ve bilgi tabanına dayalı hızlı arama ve sohbet deneyimi.</p>
+        </div>
+      </div>
+      <div class="status">
+        <span class="dot" id="status-dot" data-state="idle"></span>
+        <span id="status-text">Hazır</span>
+      </div>
+    </header>
+
+    <main class="main">
+      <div id="conversation" class="conversation">
+        <div class="message assistant">
+          <div class="avatar">AI</div>
+          <div class="bubble">Merhaba! Chat modunda mevcut Mitaş bilgi tabanında arama yapabilir veya Belge Q&amp;A moduna geçerek yeni PDF yükleyip sonuçları alabilirsiniz.</div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="composer">
+      <div class="mode-switch">
+        <label><input type="radio" name="mode" value="chat" checked> Chat</label>
+        <label><input type="radio" name="mode" value="doc"> Belge Q&amp;A</label>
+      </div>
+
+      <div id="doc-row" class="doc-row">
+        <label>Dosya:
+          <input id="file" type="file" accept=".pdf,.png,.jpg,.jpeg,.tif,.tiff" />
+        </label>
+        <label class="toggle">
+          <input id="preprocess" type="checkbox" checked />
+          <span>OCR iyileştirme (daha yavaş)</span>
+        </label>
+      </div>
+
+      <div class="input-row">
+        <textarea id="q" rows="1" placeholder="Mesajınızı yazın. Göndermek için Enter, yeni satır için Shift+Enter."></textarea>
+        <button id="run"><span class="btn-label">Gönder</span><span class="btn-icon" aria-hidden="true">➤</span></button>
+      </div>
+
+      <div id="processing-blocker" class="processing-blocker" role="status" aria-live="assertive">
+        <span class="dot"></span>
+        <span id="blocking-text">Belge işleniyor, lütfen bekleyin…</span>
+        <div class="progress" aria-hidden="true">
+          <div class="bar" id="processing-progress-bar" style="width:0%"></div>
+          <div class="pct" id="processing-progress-pct">0%</div>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    const conversation = document.getElementById('conversation');
+    const mainContainer = document.querySelector('.main');
+    const btn = document.getElementById('run');
+    const docRow = document.getElementById('doc-row');
+    const modeRadios = document.getElementsByName('mode');
+    const statusDot = document.getElementById('status-dot');
+    const statusText = document.getElementById('status-text');
+    const questionInput = document.getElementById('q');
+    const fileInput = document.getElementById('file');
+    const preprocessToggle = document.getElementById('preprocess');
+    const processingBlocker = document.getElementById('processing-blocker');
+    const blockingText = document.getElementById('blocking-text');
+    const processingBar = document.getElementById('processing-progress-bar');
+    const processingPct = document.getElementById('processing-progress-pct');
+    let blockingBase = '';
+    let progressValue = 0;
+    let progressBuf = '';
+    let currentCollection = '';
+
+    function setProgress(n) {
+      const v = Math.max(0, Math.min(100, Number(n) || 0));
+      progressValue = v;
+      if (processingBar) processingBar.style.width = v + '%';
+      if (processingPct) processingPct.textContent = v + '%';
+      if (blockingText && blockingBase) {
+        blockingText.textContent = `${blockingBase} (${v}%)`;
+      }
+    }
+
+    function setStatus(message, state = 'running') {
+      statusText.textContent = message;
+      statusDot.dataset.state = state;
+    }
+
+    function autoGrow(el) {
+      el.style.height = 'auto';
+      el.style.height = Math.min(el.scrollHeight, 220) + 'px';
+    }
+
+    function getMode() {
+      for (const r of modeRadios) if (r.checked) return r.value;
+      return 'chat';
+    }
+
+    function toggleDocRow() {
+      const show = getMode() === 'doc';
+      docRow.style.display = show ? 'flex' : 'none';
+    }
+
+    function scrollToLatest(smooth = false) {
+      if (!mainContainer) return;
+      requestAnimationFrame(() => {
+        const behavior = smooth ? 'smooth' : 'auto';
+        mainContainer.scrollTo({ top: mainContainer.scrollHeight, behavior });
+      });
+    }
+
+    function appendMessage(role, content) {
+      const wrapper = document.createElement('div');
+      wrapper.className = `message ${role}`;
+      const avatar = document.createElement('div');
+      avatar.className = 'avatar';
+      avatar.textContent = role === 'user' ? 'Siz' : 'AI';
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble';
+      bubble.textContent = content;
+      wrapper.appendChild(avatar);
+      wrapper.appendChild(bubble);
+      conversation.appendChild(wrapper);
+      scrollToLatest(true);
+      return bubble;
+    }
+
+    function processSegment(segment, hasNewline, onChunkFn) {
+      const text = hasNewline ? segment + '\n' : segment;
+      if (
+        processingBlocker &&
+        processingBlocker.classList.contains('active')
+      ) {
+        const match = segment.match(/^\[PROGRESS\s+(\d{1,3})\]\s*$/);
+        if (match) {
+          const pct = parseInt(match[1], 10);
+          if (!Number.isNaN(pct)) setProgress(pct);
+          return;
+        }
+      }
+      // Koleksiyon işareti yakalama
+      const cm = segment.match(/^\[COLLECTION\s+([^\]\s]+)\]\s*$/);
+      if (cm) {
+        currentCollection = cm[1];
+        // Aynı belgeyle devam edebilmek için seçimli dosyayı temizle
+        if (fileInput) fileInput.value = '';
+        // kullanıcıya görünür bırakmak istemiyorsak erken dön
+        return;
+      }
+      if (text && typeof onChunkFn === 'function') onChunkFn(text);
+    }
+
+    async function readStream(reader, onChunk) {
+      const decoder = new TextDecoder('utf-8');
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        progressBuf += decoder.decode(value, { stream: true });
+        let newlineIndex;
+        while ((newlineIndex = progressBuf.indexOf('\n')) !== -1) {
+          const segment = progressBuf.slice(0, newlineIndex);
+          progressBuf = progressBuf.slice(newlineIndex + 1);
+          processSegment(segment, true, onChunk);
+        }
+      }
+      if (progressBuf) {
+        processSegment(progressBuf, false, onChunk);
+        progressBuf = '';
+      }
+    }
+
+    async function handleRequest() {
+      const originalText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Çalışıyor...';
+
+      const mode = getMode();
+      const rawInput = questionInput.value;
+      const q = rawInput.trim();
+      const userMessage = q || (mode === 'doc' ? 'Belge Q&A isteği gönderildi.' : 'Boş mesaj gönderildi.');
+      appendMessage('user', userMessage);
+      questionInput.value = '';
+      autoGrow(questionInput);
+
+      let assistantBubble = appendMessage('assistant', '');
+
+      try {
+        setStatus('İstek gönderiliyor...', 'running');
+        let res;
+
+        if (mode === 'chat') {
+          res = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt: q })
+          });
+        } else {
+          const f = fileInput.files[0];
+          if (!f && currentCollection) {
+            // Aynı belge modunda sohbet: koleksiyondan devam et
+            res = await fetch('/api/doc_chat', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ prompt: q })
+            });
+          } else {
+            if (!f) {
+              throw new Error('Lütfen bir dosya seçiniz (ilk kullanım) veya Chat moduna geçiniz.');
+            }
+            if (preprocessToggle) preprocessToggle.disabled = true;
+            const form = new FormData();
+            form.append('file', f, f.name);
+            form.append('question', q);
+            if (preprocessToggle) {
+              form.append('preprocess', preprocessToggle.checked ? '1' : '0');
+            }
+            if (processingBlocker) {
+              processingBlocker.classList.add('active');
+              blockingBase = (preprocessToggle && preprocessToggle.checked)
+                ? 'OCR ile belge işleniyor, lütfen bekleyin…'
+                : 'Belge işleniyor, lütfen bekleyin…';
+              blockingText.textContent = blockingBase;
+              setProgress(5);
+              // Sahte ilerleme animasyonu
+              let fake = 15;
+              const target = 60;
+              const incrementStep = () => 3 + Math.random() * 5;
+              const step = () => {
+                if (!processingBlocker.classList.contains('active')) return;
+                fake = Math.min(fake + incrementStep(), target - 5);
+                setProgress(Math.floor(fake));
+                if (fake < target - 5) {
+                  setTimeout(step, 4200);
+                }
+              };
+              setTimeout(step, 4200);
+            }
+            res = await fetch('/api/run', { method: 'POST', body: form });
+          }
+        }
+
+        if (!res.ok) {
+          throw new Error('İstek hatası: ' + res.status);
+        }
+
+        if (!res.body) {
+          const fallback = await res.text();
+          assistantBubble.textContent = fallback;
+          setStatus('Yanıt alındı (stream desteklenmiyor).', 'ok');
+          scrollToLatest();
+          return;
+        }
+
+        await readStream(res.body.getReader(), (chunk) => {
+          assistantBubble.textContent += chunk;
+          const lines = assistantBubble.textContent.trim().split(/\r?\n/).filter(Boolean);
+          if (lines.length) {
+            const lastLine = lines[lines.length - 1].trim().toLowerCase();
+            if (lastLine.startsWith('hata')) {
+              setStatus(lines[lines.length - 1], 'error');
+            } else {
+              setStatus('Yanıt oluşturuluyor...', 'running');
+            }
+          }
+          scrollToLatest();
+        });
+
+        if (statusDot.dataset.state !== 'error') {
+          setStatus('Hazır', 'ok');
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        if (!assistantBubble || !assistantBubble.textContent.trim()) {
+          assistantBubble = appendMessage('assistant', '');
+        }
+        assistantBubble.textContent += (assistantBubble.textContent ? '\n' : '') + 'Hata: ' + message;
+        setStatus('Hata: ' + message, 'error');
+        scrollToLatest();
+      } finally {
+        btn.disabled = false;
+        btn.textContent = originalText;
+        if (preprocessToggle) preprocessToggle.disabled = false;
+        if (processingBlocker) {
+          processingBlocker.classList.remove('active');
+          setProgress(0);
+          progressBuf = '';
+          blockingBase = '';
+        }
+      }
+    }
+
+    for (const r of modeRadios) {
+      r.addEventListener('change', () => {
+        toggleDocRow();
+        questionInput.focus();
+      });
+    }
+
+    btn.addEventListener('click', handleRequest);
+
+    questionInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        handleRequest();
+      }
+    });
+
+    questionInput.addEventListener('input', () => autoGrow(questionInput));
+
+    toggleDocRow();
+    autoGrow(questionInput);
+    questionInput.focus();
+  </script>
+</body>
+</html>
