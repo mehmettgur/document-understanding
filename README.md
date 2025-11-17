@@ -10,6 +10,14 @@ Belge Asistanı; PDF tabanlı kurum içi dokümanları Docling ile ayrıştıran
 - Ollama tabanlı bağlamlı yanıt üretimi, Chat ve Belge Q&A modları
 - CLI modunda PDF→chunk→Qdrant→arama hattını otomatikleştirme
 
+## Chat ve Belge Q&A Modları
+- **Chat modu** varsayılan olarak yalnızca Ollama'ya bağlanır. Bir koleksiyon üzerinden arama yapmak istiyorsanız `HR_RAG_CHAT_USE_COLLECTION=1` olarak ayarlayın; uygulama bu durumda `HR_RAG_COLLECTION` (varsayılan `hr_rag`) değerindeki Qdrant koleksiyonuna bağlanır ve bulunan parçaları LLM bağlamı olarak kullanır. Bu yöntem, hazır bir bilgi tabanını sorgulamak için idealdir.
+- **Belge Q&A modu** yüklediğiniz her PDF için `_collection_name_for_document` fonksiyonunun ürettiği ayrı bir koleksiyon açar. Koleksiyon adı PDF dosya adından türetilir, bu yüzden `AdSoyad-Birim.pdf` biçimi önemlidir. Dosya adı şu metaverileri sağlar:
+  - `employee_name`: `AdSoyad` kısmı CamelCase bile olsa otomatik olarak boşluklandırılır.
+  - `department`: Dosya adındaki ikinci kısım (`Birim`) alt çizgiler boşluğa çevrilerek saklanır.
+  - `doc_title`: Tam dosya adı stem'i (ör. `AdSoyad-Birim`).
+  Bu alanlar her chunk kaydına yazılır (ör. `chunk_id = {employee_name_slug}__p{sayfa}__c{indeks}`) ve sonuç listesinde gösterilir. `/api/run` yanıtındaki `[COLLECTION ...]` satırı en son oluşturulan koleksiyonu bildirir; `/api/doc_chat` otomatik olarak bu koleksiyonu kullanır.
+  
 ## Depo Yapısı
 | Yol | Açıklama |
 | --- | --- |
@@ -56,14 +64,6 @@ Arayüzde kullanılan logo `static/logo.jpg` dosyasından servis edilir; 190×38
 | `HR_RAG_USE_OLLAMA`, `HR_RAG_OLLAMA_URL`, `HR_RAG_OLLAMA_MODEL` | LLM çağrı ayarları | `True`, `http://localhost:11434`, `aya-expanse:32b` |
 | `HR_RAG_OLLAMA_TEMPERATURE` | Ollama sıcaklığı | `0.1` |
 | `HR_RAG_OLLAMA_MAX_CONTEXT` | LLM bağlamına eklenecek chunk sayısı | `3` |
-
-## Chat ve Belge Q&A Modları
-- **Chat modu** varsayılan olarak yalnızca Ollama'ya bağlanır. Bir koleksiyon üzerinden arama yapmak istiyorsanız `HR_RAG_CHAT_USE_COLLECTION=1` olarak ayarlayın; uygulama bu durumda `HR_RAG_COLLECTION` (varsayılan `hr_rag`) değerindeki Qdrant koleksiyonuna bağlanır ve bulunan parçaları LLM bağlamı olarak kullanır. Bu yöntem, hazır bir bilgi tabanını sorgulamak için idealdir.
-- **Belge Q&A modu** yüklediğiniz her PDF için `_collection_name_for_document` fonksiyonunun ürettiği ayrı bir koleksiyon açar. Koleksiyon adı PDF dosya adından türetilir, bu yüzden `AdSoyad-Birim.pdf` biçimi önemlidir. Dosya adı şu metaverileri sağlar:
-  - `employee_name`: `AdSoyad` kısmı CamelCase bile olsa otomatik olarak boşluklandırılır.
-  - `department`: Dosya adındaki ikinci kısım (`Birim`) alt çizgiler boşluğa çevrilerek saklanır.
-  - `doc_title`: Tam dosya adı stem'i (ör. `AdSoyad-Birim`).
-  Bu alanlar her chunk kaydına yazılır (ör. `chunk_id = {employee_name_slug}__p{sayfa}__c{indeks}`) ve sonuç listesinde gösterilir. `/api/run` yanıtındaki `[COLLECTION ...]` satırı en son oluşturulan koleksiyonu bildirir; `/api/doc_chat` otomatik olarak bu koleksiyonu kullanır.
 
 ## CLI ile Tam Hattı Çalıştırma
 Web arayüzüne ihtiyaç duymadan tüm akışı tek komutla başlatabilirsiniz:
