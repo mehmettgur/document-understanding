@@ -21,14 +21,14 @@ import re
 
 LAST_DOC_COLLECTION: str | None = None
 
-app = FastAPI(title="Mitas Chatbot Demo", version="1.0")
+app = FastAPI(title="Belge Asistanı", version="1.0")
 
 SERVICE_CONFIG = RagServiceConfig.from_env()
 
 def _form_to_bool(value: str) -> bool:
     return str(value or "").strip().lower() in {"1", "true", "on", "yes"}
 
-# farklı origin testleri
+# Geliştirme sırasında tüm origin'lerden gelen istekleri kabul et
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -37,7 +37,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# /static altında HTML servisi
+# Statik arayüz dosyalarını /static altında servis et
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/", response_class=HTMLResponse)
@@ -119,9 +119,7 @@ async def api_chat(prompt: str = Body("", embed=True)):
 
 @app.post("/api/doc_chat")
 async def api_doc_chat(prompt: str = Body("", embed=True)):
-    question = prompt.strip()
-    if not question:
-        question = "Selam!"
+    question = prompt.strip() or "Selam!"
     if not LAST_DOC_COLLECTION:
         raise HTTPException(status_code=400, detail="Önce bir belge yükleyip indeksleyiniz (koleksiyon bulunamadı).")
 
@@ -134,7 +132,7 @@ async def api_doc_chat(prompt: str = Body("", embed=True)):
 
     return StreamingResponse(generate(), media_type="text/plain; charset=utf-8")
 
-# Sağlık kontrolü
+# Basit sağlık kontrolü
 @app.get("/health")
 def health():
     return {"ok": True}

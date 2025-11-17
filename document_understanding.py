@@ -20,7 +20,7 @@ from typing import Dict, Iterable, Iterator, List, Optional, Sequence, Tuple
 
 import requests
 
-# Temel bağımlılık kontrolleri (zorunlu olanlar burada tutuluyor)
+# Zorunlu bağımlılıkların eksik olması durumunda kullanıcıya kurulumu hatırlatan paket listesi
 REQUIRED_IMPORTS = {
     "numpy": "pip install numpy",
     "pandas": "pip install pandas",
@@ -61,6 +61,21 @@ except ImportError:  # pragma: no cover - hatalı kurulum durumunda varsayılan
     )
 
 _EMBED_MODEL_CACHE: Dict[str, "sentence_transformers.SentenceTransformer"] = {}
+
+
+def _preferred_embed_device() -> str:
+    """Uygun olduğunda GPU kullanacak şekilde SentenceTransformer cihazını belirler."""
+    try:
+        import torch
+
+        if torch.cuda.is_available():
+            return "cuda"
+    except Exception:
+        pass
+    return "cpu"
+
+
+_SENTENCE_TRANSFORMER_DEVICE = _preferred_embed_device()
 
 
 def _parse_env_bool(value: Optional[str], default: bool = False) -> bool:
@@ -116,7 +131,7 @@ class RagServiceConfig:
             or os.environ.get("QDRANT_COLLECTION")
             or "hr_rag",
             model_dir=model_env,
-            qdrant_url=os.environ.get("QDRANT_URL", "http://localhost:6333"), # 192.168.84.157
+            qdrant_url=os.environ.get("QDRANT_URL", "http://localhost:6333"), 
             qdrant_api_key=_clean_env_str(os.environ.get("QDRANT_API_KEY")),
             threads=int(os.environ.get("HR_RAG_THREADS", "4")),
             docling_batch=int(os.environ.get("HR_RAG_DOCLING_BATCH", "2")),
@@ -975,9 +990,7 @@ def embed_texts_local_first(
     texts: Sequence[str],
     batch_size: int = 32,
 ) -> np.ndarray:
-    """
-    Trendyol embedding modelini yerelde arar; yoksa Hugging Face üzerinden indirip önbelleğe alır.
-    """
+    """Önce yerel embedding modelini arar; bulunamazsa Hugging Face üzerinden indirir."""
     from sentence_transformers import SentenceTransformer
 
     key = str(Path(model_dir).resolve()) if model_dir else "__hf_trendyol_default__"
@@ -1001,7 +1014,7 @@ def embed_texts_local_first(
                 try:
                     model = SentenceTransformer(
                         str(snapshot_path),
-                        device="cpu",
+                        device=_SENTENCE_TRANSFORMER_DEVICE,
                         trust_remote_code=True,
                         local_files_only=True,
                     )
@@ -1012,7 +1025,7 @@ def embed_texts_local_first(
                 log_info(f"Model klasörü indirilecek veya güncellenecek: {model_path}")
                 model = SentenceTransformer(
                     model_name,
-                    device="cpu",
+                    device=_SENTENCE_TRANSFORMER_DEVICE,
                     cache_folder=str(model_path),
                     local_files_only=False,
                     trust_remote_code=True,
@@ -1024,7 +1037,7 @@ def embed_texts_local_first(
             try:
                 model = SentenceTransformer(
                     model_name,
-                    device="cpu",
+                    device=_SENTENCE_TRANSFORMER_DEVICE,
                     trust_remote_code=False,
                     local_files_only=False,
                 )
@@ -1033,7 +1046,7 @@ def embed_texts_local_first(
                     log_info("Model özel kod gerektiriyor, trust_remote_code=True ile yeniden deneniyor.")
                     model = SentenceTransformer(
                         model_name,
-                        device="cpu",
+                        device=_SENTENCE_TRANSFORMER_DEVICE,
                         trust_remote_code=True,
                         local_files_only=False,
                     )
@@ -1409,7 +1422,7 @@ def _build_llm_context_blocks(results: Sequence, max_chunks: int) -> List[str]:
 def _compose_ollama_prompt(question: str, context_blocks: Sequence[str]) -> str:
     context_text = "\n\n".join(context_blocks) if context_blocks else "(Bağlam sağlanmadı)"
     return (
-        "Sen Mitaş insan kaynakları için belge tabanlı çalışan bir yardımcı asistanısın."
+        "Sen kurum içi belgeler ve bilgi tabanlarıyla çalışan yardımcı bir asistanısın."
         " Verilen bağlamdaki bilgilerle soruyu TÜRKÇE olarak yanıtla."
         " Bağlamda olmayan detayları üretme. Gerekirse 'bağlamda bilgi yok' de."
         " Cevap verirken kısa bir özet ve gerektiğinde maddeler halinde cevap ver."
