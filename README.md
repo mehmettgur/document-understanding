@@ -2,9 +2,6 @@
 
 Belge Asistanı; PDF tabanlı kurum içi dokümanları Docling ile ayrıştıran, parçalayarak vektörleştiren ve Qdrant üzerinde indeksleyip Ollama destekli bir sohbet arayüzüne sunan hafif bir RAG (Retrieval-Augmented Generation) çözümüdür. Tek komutla PDF'ten arama sonuçlarına kadar tüm hattı çalıştırabilir veya FastAPI tabanlı web servisini devreye alarak kullanıcıların tarayıcı üzerinden belge yükleyip sorgu üretmesine olanak tanır.
 
-## Logo
-Arayüzde kullanılan logo `static/logo.jpg` dosyasından servis edilir; 190×38 px civarında yatay bir işaret beklenir. Farklı bir logo kullanmak için aynı yolu yeni görselle değiştirmeniz yeterli.
-
 ## Özellikler
 - Docling + RapidOCR ile güvenilir PDF parse ve opsiyonel ImageMagick ön işleme
 - Karakter tabanlı parçalara bölme, tekrar eden chunk'ları filtreleme
@@ -23,6 +20,9 @@ Arayüzde kullanılan logo `static/logo.jpg` dosyasından servis edilir; 190×38
 
 ## Ekran Görüntüsü
 ![Belge Asistanı arayüzü](ekran_goruntusu.jpg)
+
+## Logo
+Arayüzde kullanılan logo `static/logo.jpg` dosyasından servis edilir; 190×38 px civarında yatay bir işaret beklenir. Farklı bir logo kullanmak için aynı yolu yeni görselle değiştirmeniz yeterli.
 
 ## Hızlı Kurulum
 1. Qdrant ve Ollama servislerini başlatın (örnek Qdrant komutu: `docker run -p 6333:6333 -p 6334:6334 qdrant/qdrant:latest`).
