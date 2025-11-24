@@ -27,7 +27,7 @@ Belge Asistanı; PDF tabanlı kurum içi dokümanları Docling ile ayrıştıran
 | `requirements.txt` | Python bağımlılıkları (Docling CLI, Qdrant istemcisi, Torch, vb.).
 
 ## Ekran Görüntüsü
-![Belge Asistanı arayüzü](ekran_goruntusu.jpg)
+![Belge Asistanı arayüzü](static/ekran_goruntusu.jpg)
 
 ## Logo
 Arayüzde kullanılan logo `static/logo.jpg` dosyasından servis edilir; 190×38 px civarında yatay bir işaret beklenir. Farklı bir logo kullanmak için aynı yolu yeni görselle değiştirmeniz yeterli.
